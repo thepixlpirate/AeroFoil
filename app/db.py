@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine
 from sqlalchemy import event
@@ -169,6 +170,11 @@ def _apps_before_insert(mapper, connection, target):
 @event.listens_for(Apps, 'before_update')
 def _apps_before_update(mapper, connection, target):
     target.app_version_num = _coerce_app_version_num(getattr(target, 'app_version', 0))
+
+class HiddenDLC(db.Model):
+    __tablename__ = 'hidden_dlcs'
+    app_id = db.Column(db.String, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
