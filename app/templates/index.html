@@ -2094,6 +2094,33 @@
             includeBaseStatus: String(game.app_type || '').toUpperCase() === 'DLC',
             includeDlcUpdateStatus: true,
         });
+        const dlcContainer = $('#detailsVersions');
+if (Array.isArray(dlcList) && dlcList.length) {
+    let dlcHtml = '<div class="table-responsive"><table class="table table-sm table-dark table-striped align-middle"><thead><tr><th>Title</th><th>Owned</th><th>Ignore</th><th>Action</th></tr></thead><tbody>';
+    dlcList.forEach(function (dlc) {
+        const dlcTitle = escapeHtml(String(dlc.name || dlc.app_id || ''));
+        const ownedLabel = dlc.owned ? 'In Library' : 'Missing';
+        const checkedAttr = dlc.hidden ? 'checked' : '';
+        const safeAppId = escapeHtml(String(dlc.app_id || ''));
+        dlcHtml += '<tr>' +
+            '<td>' + dlcTitle + '</td>' +
+            '<td>' + escapeHtml(ownedLabel) + '</td>' +
+            '<td>' +
+              '<div class="form-check form-check-inline">' +
+                '<input class="form-check-input dlc-hide-checkbox" type="checkbox" ' +
+                       'id="dlc-hide-' + safeAppId + '" ' +
+                       'data-app-id="' + safeAppId + '" ' + checkedAttr + '>' +
+                '<label class="form-check-label" for="dlc-hide-' + safeAppId + '">Ignore</label>' +
+              '</div>' +
+            '</td>' +
+            '<td><!-- existing actions (if any) will still go here --></td>' +
+            '</tr>';
+    });
+    dlcHtml += '</tbody></table></div>';
+    dlcContainer.html(dlcHtml);
+} else {
+    dlcContainer.html('<div class="text-muted small">No DLCs found.</div>');
+}
         const genres = splitGenres(getGameGenre(game));
         if (genres.length) {
             metaItems.push(buildSecondaryMetaBadge(`Genres: ${genres.join(', ')}`));
@@ -2773,6 +2800,36 @@
     //     applyFilters();
     // });
 
-    
+    // --- Add this JS in the existing <script> block, near other event handlers ---
+$(document).on('change', '.dlc-hide-checkbox', function () {
+    const appId = $(this).data('app-id');
+    const hide = $(this).is(':checked');
+    if (!appId) return;
+    $.ajax({
+        url: '/api/hidden-dlcs',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ app_id: appId, hidden: hide }),
+    }).done(function (result) {
+        if (result && result.success) {
+            // Try to refresh the current details / list. If a named refresh function exists, use it; else reload.
+            try {
+                if (typeof refreshGames === 'function') {
+                    refreshGames();
+                } else if (typeof refreshDetails === 'function') {
+                    refreshDetails();
+                } else {
+                    location.reload();
+                }
+            } catch (e) {
+                location.reload();
+            }
+        } else {
+            console.warn('Failed to update hidden DLC:', result);
+        }
+    }).fail(function () {
+        console.warn('Failed to update hidden DLC');
+    });
+});
 </script>
 {% endblock %}
