@@ -5262,52 +5262,53 @@ def get_all_titles_api():
         .group_by(Apps.title_id)
         .subquery()
     )
-    hidden_dlc_subquery = db.session.query(HiddenDLC.app_id).subquery()
+        hidden_dlc_subquery = db.session.query(HiddenDLC.app_id).subquery()
 
-dlc_title_status_subquery = (
-    db.session.query(
-        Apps.title_id.label('title_fk'),
-        Apps.app_id.label('dlc_app_id'),
-        func.max(app_version_num_expr).label('max_version'),
-        func.max(
-            case(
-                (Apps.owned.is_(True), 1),
-                else_=0
-            )
-        ).label('has_owned'),
-        func.max(
-            case(
-                (Apps.owned.is_(True), app_version_num_expr),
-                else_=0
-            )
-        ).label('max_owned_version')
+    dlc_title_status_subquery = (
+        db.session.query(
+            Apps.title_id.label('title_fk'),
+            Apps.app_id.label('dlc_app_id'),
+            func.max(app_version_num_expr).label('max_version'),
+            func.max(
+                case(
+                    (Apps.owned.is_(True), 1),
+                    else_=0
+                )
+            ).label('has_owned'),
+            func.max(
+                case(
+                    (Apps.owned.is_(True), app_version_num_expr),
+                    else_=0
+                )
+            ).label('max_owned_version')
+        )
+        .filter(
+            Apps.app_type == APP_TYPE_DLC,
+            not_(Apps.app_id.in_(hidden_dlc_subquery))
+        )
+        .group_by(Apps.title_id, Apps.app_id)
+        .subquery()
     )
-    .filter(
-        Apps.app_type == APP_TYPE_DLC,
-        not_(Apps.app_id.in_(hidden_dlc_subquery))
-    )
-    .group_by(Apps.title_id, Apps.app_id)
-    .subquery()
-)
 
-dlc_agg_subquery = (
-    db.session.query(
-        Apps.app_id.label('dlc_app_id'),
-        func.max(app_version_num_expr).label('max_version'),
-        func.max(
-            case(
-                (Apps.owned.is_(True), app_version_num_expr),
-                else_=0
-            )
-        ).label('max_owned_version'),
+    dlc_agg_subquery = (
+        db.session.query(
+            Apps.app_id.label('dlc_app_id'),
+            func.max(app_version_num_expr).label('max_version'),
+            func.max(
+                case(
+                    (Apps.owned.is_(True), app_version_num_expr),
+                    else_=0
+                )
+            ).label('max_owned_version')
+        )
+        .filter(
+            Apps.app_type == APP_TYPE_DLC,
+            not_(Apps.app_id.in_(hidden_dlc_subquery))
+        )
+        .group_by(Apps.app_id)
+        .subquery()
     )
-    .filter(
-        Apps.app_type == APP_TYPE_DLC,
-        not_(Apps.app_id.in_(hidden_dlc_subquery))
-    )
-    .group_by(Apps.app_id)
-    .subquery()
-)
+
     dlc_completion_subquery = (
         db.session.query(
             dlc_title_status_subquery.c.title_fk.label('title_fk'),
@@ -5331,7 +5332,6 @@ dlc_agg_subquery = (
         .group_by(dlc_title_status_subquery.c.title_fk)
         .subquery()
     )
-
     query = (
         db.session.query(
             Apps.id.label('app_pk'),
