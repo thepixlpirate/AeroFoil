@@ -5159,7 +5159,6 @@ def delete_save_api(title_id, save_id=None):
         'legacy': is_legacy,
         'deleted': True,
     }, message='Save backup deleted successfully.')
-
 @app.route('/api/hidden-dlcs', methods=['GET', 'POST'])
 @access_required('admin')
 def manage_hidden_dlcs():
