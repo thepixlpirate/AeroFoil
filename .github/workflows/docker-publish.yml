@@ -35,8 +35,8 @@ jobs:
           context: .
           push: true
           tags: |
-            stayingarmed27/aerofoil:latest
-            stayingarmed27/aerofoil:${{ github.sha }}
+            thepixlpirate/aerofoil:latest
+            thepixlpirate/aerofoil:${{ github.sha }}
           platforms: linux/amd64,linux/arm64
-          cache-from: type=registry,ref=stayingarmed27/aerofoil:latest
+          cache-from: type=registry,ref=thepixlpirate/aerofoil:latest
           cache-to: type=inline
