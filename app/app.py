@@ -288,7 +288,6 @@ def init():
 
     def maintenance_job():
         run_library_maintenance()
-
     # Automatic update downloader job
     app.scheduler.add_job(
         job_id='downloads_update_job',
@@ -630,7 +629,7 @@ def _get_cached_shop_files():
 def _get_cached_encrypted_shop_payload(shop_payload, public_key, verified_host):
     state_token = get_library_cache_state_token()
     motd = str(shop_payload.get("success") or "")
-    referrer = str(shop_payload.get("referrer") or verified_host or "")
+    referrer = str(shop_payload.get('referrer') or verified_host or "")
     cache_key = (state_token, motd, str(public_key or ''), referrer)
 
     with shop_root_cache_lock:
@@ -647,7 +646,6 @@ def _get_cached_encrypted_shop_payload(shop_payload, public_key, verified_host):
             ordered_keys = list(encrypted_cache.keys())[-_SHOP_ROOT_ENCRYPTED_CACHE_LIMIT:]
             shop_root_cache['encrypted'] = {k: encrypted_cache[k] for k in ordered_keys}
     return payload
-
 
 def _get_cached_encrypted_shop_sections_payload(shop_payload, public_key, cache_limit, full_catalog=False):
     state_token = _get_titledb_aware_state_token()
@@ -667,7 +665,6 @@ def _get_cached_encrypted_shop_sections_payload(shop_payload, public_key, cache_
             ordered_keys = list(encrypted_cache.keys())[-_SHOP_SECTIONS_ENCRYPTED_CACHE_LIMIT:]
             shop_sections_cache['encrypted'] = {k: encrypted_cache[k] for k in ordered_keys}
     return payload
-
 
 def _respond_with_shop_payload(payload, verified_host=None, cache_kind=None, cache_limit=None, full_catalog=False):
     response_payload = payload
@@ -901,7 +898,7 @@ def _get_discovery_sections(limit=12):
             recommended = list(section.get('items') or [])[:limit]
     return newest, recommended
 
-# ===== CACHE TTLs (seconds) =====
+# ===== CACHE TTLS (seconds) =====
 # Make these short if you want the Web UI caches to free memory frequently.
 # Set to 0 to disable in-memory caching entirely.
 # Set to None to disable expiry (cache refreshes on library rebuild).
@@ -1396,7 +1393,6 @@ def _normalize_save_title_id(raw_title_id):
     if not all(c in '0123456789ABCDEF' for c in title_id):
         return None
     return title_id
-
 
 def _resolve_save_sync_user():
     user = None
