@@ -5156,46 +5156,7 @@ def delete_save_api(title_id, save_id=None):
         'deleted': True,
     }, message='Save backup deleted successfully.')
 
-@app.route('/api/hidden-dlcs', methods=['GET', 'POST'])
-@access_required('admin')
-def manage_hidden_dlcs():
-    """
-    GET: returns JSON {'success': True, 'hidden': [app_id,...]}
-    POST: body JSON: {'app_id': '0100XXXX...', 'hidden': true/false}
-          hidden=true  => add to hidden list
-          hidden=false => remove from hidden list
-    """
-    if request.method == 'GET':
-        rows = HiddenDLC.query.all()
-        return jsonify({'success': True, 'hidden': [r.app_id for r in rows]})
 
-    data = request.json or {}
-    app_id = str(data.get('app_id') or '').strip().upper()
-    if not app_id:
-        return jsonify({'success': False, 'error': 'Missing app_id'}), 400
-
-    hidden_flag = data.get('hidden')
-    # If 'hidden' omitted, treat as True (toggle to hidden).
-    set_hidden = True if hidden_flag is None else bool(hidden_flag)
-
-    existing = HiddenDLC.query.filter_by(app_id=app_id).first()
-    try:
-        if set_hidden:
-            if not existing:
-                db.session.add(HiddenDLC(app_id=app_id))
-                db.session.commit()
-        else:
-            if existing:
-                db.session.delete(existing)
-                db.session.commit()
-    except Exception as e:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-    return jsonify({'success': True, 'app_id': app_id, 'hidden': set_hidden})
 @app.route('/api/titles', methods=['GET'])
 @access_required('shop')
 def get_all_titles_api():
@@ -5258,8 +5219,21 @@ def get_all_titles_api():
         .group_by(Apps.title_id)
         .subquery()
     )
-        hidden_dlc_subquery = db.session.query(HiddenDLC.app_id).subquery()
-
+    dlc_agg_subquery = (
+        db.session.query(
+            Apps.app_id.label('dlc_app_id'),
+            func.max(app_version_num_expr).label('max_version'),
+            func.max(
+                case(
+                    (Apps.owned.is_(True), app_version_num_expr),
+                    else_=0
+                )
+            ).label('max_owned_version')
+        )
+        .filter(Apps.app_type == APP_TYPE_DLC)
+        .group_by(Apps.app_id)
+        .subquery()
+    )
     dlc_title_status_subquery = (
         db.session.query(
             Apps.title_id.label('title_fk'),
@@ -5278,33 +5252,10 @@ def get_all_titles_api():
                 )
             ).label('max_owned_version')
         )
-        .filter(
-            Apps.app_type == APP_TYPE_DLC,
-            not_(Apps.app_id.in_(hidden_dlc_subquery))
-        )
+        .filter(Apps.app_type == APP_TYPE_DLC)
         .group_by(Apps.title_id, Apps.app_id)
         .subquery()
     )
-
-    dlc_agg_subquery = (
-        db.session.query(
-            Apps.app_id.label('dlc_app_id'),
-            func.max(app_version_num_expr).label('max_version'),
-            func.max(
-                case(
-                    (Apps.owned.is_(True), app_version_num_expr),
-                    else_=0
-                )
-            ).label('max_owned_version')
-        )
-        .filter(
-            Apps.app_type == APP_TYPE_DLC,
-            not_(Apps.app_id.in_(hidden_dlc_subquery))
-        )
-        .group_by(Apps.app_id)
-        .subquery()
-    )
-
     dlc_completion_subquery = (
         db.session.query(
             dlc_title_status_subquery.c.title_fk.label('title_fk'),
@@ -5328,6 +5279,7 @@ def get_all_titles_api():
         .group_by(dlc_title_status_subquery.c.title_fk)
         .subquery()
     )
+
     query = (
         db.session.query(
             Apps.id.label('app_pk'),
